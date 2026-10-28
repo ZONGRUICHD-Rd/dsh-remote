@@ -50,9 +50,14 @@ assert.match(index, /^HTTP\/1\.1 200/, 'DSH index must load through the bridge')
 assert.match(index, /<html|<!doctype/i)
 
 // 2. A module script the page references (client bundles, plugin bundles).
-const scripts = [...index.matchAll(/<script[^>]+src="([^"]+)"/g)].map(m => m[1]).filter(src => src.startsWith('/'))
+const scripts = [...index.matchAll(/<(?:script|link)[^>]+(?:src|href)="([^"]+\.(?:js|css))"/g)]
+  .map(m => m[1])
+  .filter(src => !/^[a-z]+:/i.test(src))
+  .map(src => new URL(src, 'http://x/').pathname)
+if (scripts.length === 0) console.log('index tail:', index.slice(-1500))
+assert.ok(scripts.length > 0, 'the DSH index must reference client bundles')
 console.log('scripts:', scripts.slice(0, 5))
-if (scripts.length) {
+{
   socket = await connectPinned(port, pairing.fingerprint)
   const asset = await exchange(socket, `${preamble}GET ${scripts[0]} HTTP/1.1\r\nHost: 127.0.0.1:41000\r\nConnection: close\r\n\r\n`, { timeoutMs: 15_000, until: s => /^HTTP\/1\.1 \d{3}/.test(s) && s.includes('\r\n\r\n') })
   assert.match(asset, /^HTTP\/1\.1 200/, `asset ${scripts[0]} must load`)
