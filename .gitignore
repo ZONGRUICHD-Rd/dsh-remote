@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tgz
+.DS_Store
+ios/build/
+ios/*.xcodeproj
+ios/DerivedData/
+xcuserdata/
+ios/DSHRemote/Info.plist

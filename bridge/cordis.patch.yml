@@ -1,0 +1,17 @@
+# DSH Remote bridge layer. Every field below is an initial default: values
+# changed later from the admin page or the iOS app are stored in
+# $DSH_HOME/dsh-remote/state.json and take precedence.
+- insert:
+    - id: dsh-remote-bridge
+      name: dsh-remote-bridge
+      config:
+        # TCP port phones connect to (LAN and port-forwarded internet access).
+        port: 39090
+        # Loopback-only admin page port (pairing QR code, DDNS, devices).
+        adminPort: 39091
+        # Interface to listen on. 0.0.0.0 = every IPv4 interface, :: = dual stack.
+        bindHost: 0.0.0.0
+        # Serve TLS with a self-signed certificate pinned by the app at pairing.
+        tls: true
+        # Advertise _dshremote._tcp over Bonjour/mDNS for zero-config LAN discovery.
+        mdns: true

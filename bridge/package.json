@@ -1,0 +1,36 @@
+{
+  "name": "dsh-remote-bridge",
+  "version": "0.1.0",
+  "description": "DSH Remote bridge: exposes the DSH desktop/web UI to the DSH Remote iOS app over LAN (TLS, pairing, Bonjour) and the internet (DDNS, UPnP).",
+  "license": "MIT",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "keywords": [
+    "dsh-plugin",
+    "dsh",
+    "remote",
+    "ios"
+  ],
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "pack:release": "node scripts/pack.mjs"
+  }
+}

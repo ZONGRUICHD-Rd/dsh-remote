@@ -1,0 +1,74 @@
+name: DSHRemote
+options:
+  bundleIdPrefix: io.github.dshremote
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  developmentLanguage: zh-Hans
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  DSHRemote:
+    type: application
+    platform: iOS
+    sources:
+      - path: DSHRemote
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.dshremote.app
+        PRODUCT_NAME: DSHRemote
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: DSHRemote/Info.plist
+    info:
+      path: DSHRemote/Info.plist
+      properties:
+        CFBundleDisplayName: DSH Remote
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen:
+          UIColorName: AccentColor
+        UIApplicationSupportsIndirectInputEvents: true
+        UIStatusBarStyle: UIStatusBarStyleDefault
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        CFBundleURLTypes:
+          - CFBundleURLName: io.github.dshremote.pair
+            CFBundleURLSchemes:
+              - dshremote
+        NSLocalNetworkUsageDescription: DSH Remote 需要访问局域网，以直连你电脑上的 DSH（超低延迟）。DSH Remote connects directly to DSH on your computer over the local network.
+        NSBonjourServices:
+          - _dshremote._tcp
+        NSCameraUsageDescription: 扫描电脑上显示的配对二维码。Scan the pairing QR code shown on your computer.
+        NSMicrophoneUsageDescription: 在 DSH 中使用语音输入。Voice input in DSH.
+        NSPhotoLibraryUsageDescription: 向 DSH 对话上传图片。Attach photos to DSH conversations.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+schemes:
+  DSHRemote:
+    build:
+      targets:
+        DSHRemote: all
+    run:
+      config: Debug
+    archive:
+      config: Release

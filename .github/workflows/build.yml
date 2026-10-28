@@ -1,0 +1,199 @@
+name: Build & Release
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Publish a GitHub release for the current version
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bridge-test:
+    name: Bridge tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+        working-directory: bridge
+
+  dsh-e2e:
+    name: E2E with real DSH (${{ matrix.os }})
+    needs: bridge-test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    continue-on-error: ${{ matrix.os == 'windows-latest' }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install DSH CLI and pnpm
+        run: |
+          npm install -g pnpm@10 @deepseek-ai/dsh@latest
+          dsh --version
+      - name: Pack bridge
+        run: node scripts/pack.mjs
+        working-directory: bridge
+      - name: Install bridge into the web profile
+        run: |
+          export DSH_HOME="$RUNNER_TEMP/dsh-home"
+          echo "DSH_HOME=$DSH_HOME" >> "$GITHUB_ENV"
+          TGZ=$(ls "$PWD"/bridge/dist/dsh-remote-bridge-*.tgz)
+          if [ "$RUNNER_OS" = "Windows" ]; then TGZ=$(cygpath -m "$TGZ"); fi
+          dsh plugin --profile web add "file:$TGZ"
+          dsh --profile web --dump-config | grep -n -A6 "dsh-remote-bridge"
+      - name: Start dsh web and run end-to-end checks
+        run: |
+          dsh web --no-open --port 3080 > "$RUNNER_TEMP/dsh.log" 2>&1 &
+          DSH_PID=$!
+          node bridge/scripts/e2e-real-dsh.mjs
+          kill $DSH_PID || true
+      - name: DSH log
+        if: always()
+        run: cat "$RUNNER_TEMP/dsh.log" || true
+
+  windows-package:
+    name: Windows plugin package
+    needs: bridge-test
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: version
+        shell: bash
+        run: echo "version=$(node -p "require('./bridge/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Pack
+        working-directory: bridge
+        run: node scripts/pack.mjs
+      - name: Zip Windows bundle
+        shell: pwsh
+        working-directory: bridge/dist
+        run: |
+          $v = '${{ steps.version.outputs.version }}'
+          Compress-Archive -Path "dsh-remote-bridge-$v-windows/*" -DestinationPath "dsh-remote-bridge-$v-windows.zip"
+          Get-ChildItem
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bridge
+          path: |
+            bridge/dist/*.tgz
+            bridge/dist/*.zip
+
+  ios:
+    name: iOS app
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      HAS_SIGNING: ${{ secrets.IOS_CERT_P12_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Cross-check QR encoder with CoreImage
+        run: |
+          set -e
+          for spec in "hello|M" "dshremote://pair?v=1&n=My%20PC&id=0f8c3a2e-1111-4222-8333-944455556666&h=192.168.1.10,10.0.0.5&p=39090&c=123456&tls=1&fp=4f2a9c0b1d3e5f7a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a&r=myhome.duckdns.org&rp=39090|L" "$(printf 'x%.0s' $(seq 1 300))|M" "Ünïcödé 中文 配对|Q"; do
+            text="${spec%|*}"; level="${spec##*|}"
+            node bridge/scripts/qr-matrix.mjs "$text" "$level" > /tmp/qr.txt
+            swift ios/scripts/decode-qr.swift /tmp/qr.txt "$text"
+          done
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+          xcodebuild -version
+      - name: Generate project
+        working-directory: ios
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Build (unsigned)
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild -project DSHRemote.xcodeproj -scheme DSHRemote -configuration Release \
+            -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build > build.log 2>&1 || { grep -E "error:" build.log | head -100; tail -40 build.log; exit 1; }
+          grep -c "warning:" build.log || true
+          tail -5 build.log
+      - name: Package unsigned IPA
+        working-directory: ios
+        run: |
+          VERSION=$(node -p "require('../bridge/package.json').version")
+          mkdir -p dist/Payload
+          cp -R build/Build/Products/Release-iphoneos/DSHRemote.app dist/Payload/
+          (cd dist && zip -qry "DSHRemote-$VERSION-unsigned.ipa" Payload && rm -rf Payload)
+          ls -la dist
+      - name: Signed IPA (only when signing secrets are configured)
+        if: env.HAS_SIGNING == 'true'
+        env:
+          IOS_CERT_P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+          IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          IOS_EXPORT_METHOD: ${{ secrets.IOS_EXPORT_METHOD || 'ad-hoc' }}
+        working-directory: ios
+        run: bash scripts/sign-ipa.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: ios/dist/*.ipa
+
+  release:
+    name: GitHub release
+    needs: [bridge-test, dsh-e2e, windows-package, ios]
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.release) ||
+      (github.event_name == 'push' && contains(github.event.head_commit.message, '[release]'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Release notes
+        run: |
+          VERSION=${{ needs.windows-package.outputs.version }}
+          sed "s/{{VERSION}}/$VERSION/g" .github/release-notes.md > notes.md
+          ls -la artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.windows-package.outputs.version }}
+          name: DSH Remote v${{ needs.windows-package.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          body_path: notes.md
+          files: artifacts/*
+          fail_on_unmatched_files: true
