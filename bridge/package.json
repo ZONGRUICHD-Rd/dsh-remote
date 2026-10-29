@@ -1,6 +1,6 @@
 {
   "name": "dsh-remote-bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DSH Remote bridge: exposes the DSH desktop/web UI to the DSH Remote iOS app over LAN (TLS, pairing, Bonjour) and the internet (DDNS, UPnP).",
   "license": "MIT",
   "type": "module",

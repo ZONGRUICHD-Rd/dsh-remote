@@ -7,6 +7,7 @@
 - **界面与电脑完全一致**：手机里渲染的就是电脑上 DSH 自己提供的 Web 客户端——对话、**完整思考过程**（推理流 / trajectory）、工具调用、审批、计划、子代理、设置、插件市场全部原样呈现。
 - **插件自动同步**：电脑上的 DSH 新装了插件，其客户端界面由电脑实时下发，手机刷新即同步，无需更新 App。
 - **内网直连、超低延迟**：同一 Wi-Fi 下 Bonjour 自动发现、直连电脑，无中转服务器；TLS 证书固定 + TCP_NODELAY，零额外握手往返的隧道协议。
+- **iOS 26 液态玻璃**：Xcode 26 构建，原生界面全部采用 Liquid Glass（`glassEffect`、`GlassEffectContainer` 形变动画、`.glassProminent` 按钮），iOS 16–18 回退为毛玻璃材质。
 - **外网访问 + DDNS**：内置 DuckDNS / Cloudflare / DNSPod（腾讯云）/ 阿里云 DNS / DynDNS2（No-IP、Dynu、花生壳）/ Webhook，支持 UPnP 自动端口映射；App 自动在内网与外网之间切换（内网优先）。
 
 ## 组成
@@ -65,7 +66,7 @@ Release 中的 `DSHRemote-<版本>-unsigned.ipa` 未签名（没有 Apple 开发
 ```bash
 cd bridge && npm test                     # 33 个测试：隧道、代理改写、WebSocket、配对、DDNS、mDNS、QR …
 node scripts/pack.mjs                     # 生成 dist/*.tgz 与 Windows 安装包目录
-cd ios && xcodegen generate               # 生成 Xcode 工程（需 macOS）
+cd ios && xcodegen generate               # 生成 Xcode 工程（需 macOS + Xcode 26）
 ```
 
 已知限制：

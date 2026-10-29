@@ -24,14 +24,19 @@ struct PairingView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                Image(systemName: "desktopcomputer.and.arrow.down").font(.system(size: 44)).foregroundStyle(Theme.accent).padding(.top, 30)
+                Image(systemName: "desktopcomputer.and.arrow.down")
+                    .font(.system(size: 40, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 92, height: 92)
+                    .dshGlass(in: Circle())
+                    .padding(.top, 30)
                 Text(link.name).font(.title2.weight(.semibold))
                 content
                 Spacer()
             }
             .padding(20)
             .frame(maxWidth: .infinity)
-            .background(Theme.background.ignoresSafeArea())
+            .background(GlassBackdrop())
             .navigationTitle(L("配对", "Pairing"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button(L("取消", "Cancel")) { dismiss() } } }
@@ -52,14 +57,17 @@ struct PairingView: View {
                 Text(L("请确认与电脑上 /remote 或管理页显示的指纹一致（\(name)）：", "Make sure it matches the fingerprint shown by /remote or the admin page (\(name)):"))
                     .font(.subheadline).foregroundStyle(.secondary)
                 Text(groups(fingerprint)).font(.system(.callout, design: .monospaced)).textSelection(.enabled)
-                Button(L("指纹一致，继续配对", "It matches — pair")) { Task { await pair(fingerprint: fingerprint) } }
-                    .buttonStyle(PrimaryButtonStyle())
+                Button { Task { await pair(fingerprint: fingerprint) } } label: {
+                    Text(L("指纹一致，继续配对", "It matches — pair")).frame(maxWidth: .infinity)
+                }
+                .dshProminentButton()
             }
             .card()
         case .failed(let message):
             VStack(spacing: 14) {
                 Text(message).foregroundStyle(Theme.danger).multilineTextAlignment(.center)
-                Button(L("重试", "Retry")) { Task { await connect() } }.buttonStyle(PrimaryButtonStyle())
+                Button { Task { await connect() } } label: { Text(L("重试", "Retry")).frame(maxWidth: .infinity) }
+                    .dshProminentButton()
             }
             .card()
         }

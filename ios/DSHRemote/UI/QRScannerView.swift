@@ -21,11 +21,10 @@ struct QRScannerSheet: View {
                 VStack(spacing: 8) {
                     Text(L("扫描电脑上 DSH Remote 管理页的二维码", "Scan the QR code on the DSH Remote admin page"))
                         .font(.subheadline.weight(.medium))
-                    if let message { Text(message).font(.footnote).foregroundStyle(.yellow) }
+                    if let message { Text(message).font(.footnote).foregroundStyle(.orange) }
                 }
-                .foregroundStyle(.white)
-                .padding(14)
-                .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .padding(16)
+                .dshGlass(in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
                 .padding(.bottom, 40)
             }
             .toolbar {

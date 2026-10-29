@@ -110,7 +110,7 @@ jobs:
 
   ios:
     name: iOS app
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 40
     env:
       HAS_SIGNING: ${{ secrets.IOS_CERT_P12_BASE64 != '' }}
@@ -129,8 +129,12 @@ jobs:
           done
       - name: Select Xcode
         run: |
-          sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+          # Liquid Glass needs the iOS 26 SDK: build with the newest Xcode 26.
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE" ]; then echo "::error::Xcode 26 not found"; ls -d /Applications/Xcode*.app; exit 1; fi
+          sudo xcode-select -s "$XCODE"
           xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos
       - name: Generate project
         working-directory: ios
         run: |

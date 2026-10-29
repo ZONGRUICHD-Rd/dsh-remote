@@ -33,21 +33,23 @@ struct HostListView: View {
                                     Text(bridge.name).foregroundStyle(.primary)
                                     Spacer()
                                     Text(L("配对", "Pair")).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.accent)
-                                }.card()
+                                }
+                                .padding(18)
+                                .dshGlass(in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous), interactive: true)
                             }.buttonStyle(.plain)
                         }
                     }
                 }
                 .padding(16)
             }
-            .background(Theme.background.ignoresSafeArea())
+            .background(GlassBackdrop())
             .navigationTitle("DSH Remote")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Button { showScanner = true } label: { Label(L("扫描二维码", "Scan QR code"), systemImage: "qrcode.viewfinder") }
                         Button { router.pendingNearby = nil; showManual = true } label: { Label(L("手动添加", "Add manually"), systemImage: "keyboard") }
-                    } label: { Image(systemName: "plus.circle.fill").font(.title3) }
+                    } label: { Image(systemName: "plus") }
                 }
             }
         }
@@ -91,8 +93,10 @@ struct HostListView: View {
             Text(L("1. 在电脑的 DSH Desktop 中安装 DSH Remote 插件（install.cmd）。\n2. 在 DSH 对话框输入 /remote，打开管理页。\n3. 点右上角 ＋ 扫描二维码。",
                    "1. Install the DSH Remote plugin into DSH Desktop (install.cmd).\n2. Type /remote in DSH and open the admin page.\n3. Tap ＋ and scan the QR code."))
                 .font(.subheadline).foregroundStyle(.secondary)
-            Button { showScanner = true } label: { Label(L("扫描二维码", "Scan QR code"), systemImage: "qrcode.viewfinder") }
-                .buttonStyle(PrimaryButtonStyle())
+            Button { showScanner = true } label: {
+                Label(L("扫描二维码", "Scan QR code"), systemImage: "qrcode.viewfinder").frame(maxWidth: .infinity)
+            }
+                .dshProminentButton()
                 .padding(.top, 6)
         }
         .card()
@@ -106,8 +110,10 @@ private struct HostCard: View {
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.accent.opacity(0.12)).frame(width: 46, height: 46)
-                Image(systemName: "desktopcomputer").font(.title3).foregroundStyle(Theme.accent)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(LinearGradient(colors: [Theme.accent, Theme.accent.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: 46, height: 46)
+                Image(systemName: "desktopcomputer").font(.title3).foregroundStyle(.white)
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(host.name).font(.headline).foregroundStyle(.primary)
@@ -119,7 +125,9 @@ private struct HostCard: View {
             Spacer()
             Image(systemName: "chevron.right").foregroundStyle(.tertiary)
         }
-        .card()
+        .padding(18)
+        .contentShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+        .dshGlass(in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous), interactive: true)
     }
 
     private var subtitle: String {

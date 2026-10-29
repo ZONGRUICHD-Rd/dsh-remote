@@ -106,6 +106,8 @@ struct HostSettingsView: View {
                     Button(L("删除这台电脑", "Remove this computer"), role: .destructive) { confirmRemove = true }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(GlassBackdrop())
             .navigationTitle(session.host.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -84,6 +84,8 @@ struct DDNSSettingsView: View {
                 Button(L("立即更新 DNS", "Update DNS now")) { Task { await updateNow() } }.disabled(saving)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(GlassBackdrop())
         .navigationTitle("DDNS")
         .onAppear {
             options = settings.ddns.options.mapValues(\.value)

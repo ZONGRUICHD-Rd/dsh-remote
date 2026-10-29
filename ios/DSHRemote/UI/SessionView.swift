@@ -36,10 +36,7 @@ struct SessionView: View {
     @ViewBuilder private func content(_ session: RemoteSession) -> some View {
         SessionContent(session: session, web: web, generation: webGeneration)
             .overlay(alignment: .topTrailing) {
-                StatusPill(session: session, web: web,
-                           onReload: { web.reload() },
-                           onSettings: { showSettings = true },
-                           onClose: { dismiss() })
+                sessionControls(session)
                     .offset(pillOffset)
                     .gesture(DragGesture()
                         .onChanged { value in pillOffset = CGSize(width: dragStart.width + value.translation.width, height: dragStart.height + value.translation.height) }
@@ -56,6 +53,116 @@ struct SessionView: View {
             }) {
                 HostSettingsView(session: session, onRemoved: { dismiss() })
             }
+    }
+}
+
+extension SessionView {
+    @ViewBuilder fileprivate func sessionControls(_ session: RemoteSession) -> some View {
+        if #available(iOS 26.0, *) {
+            GlassSessionControls(session: session,
+                                 onReload: { web.reload() },
+                                 onSettings: { showSettings = true },
+                                 onClose: { dismiss() })
+        } else {
+            StatusPill(session: session, web: web,
+                       onReload: { web.reload() },
+                       onSettings: { showSettings = true },
+                       onClose: { dismiss() })
+        }
+    }
+}
+
+extension RemoteSession {
+    var pillColor: Color {
+        switch state {
+        case .connected(let route, _): return route == .lan ? Theme.ok : .orange
+        case .connecting, .idle: return .yellow
+        default: return Theme.danger
+        }
+    }
+
+    var pillLabel: String {
+        switch state {
+        case .connected(let route, _):
+            if let rtt = rttMs { return "\(route.label) \(rtt)ms" }
+            return route.label
+        case .connecting, .idle: return L("连接中", "Connecting")
+        case .unreachable: return L("离线", "Offline")
+        case .unauthorized: return L("未授权", "Unauthorized")
+        }
+    }
+
+    var routeDescription: String {
+        if case .connected(let route, let endpoint) = state { return "\(host.name) · \(route.label) · \(endpoint)" }
+        return host.name
+    }
+}
+
+/// iOS 26: a Liquid Glass status capsule floating over DSH that morphs into a
+/// row of glass controls (reload, route, connection mode, settings, close).
+@available(iOS 26.0, *)
+private struct GlassSessionControls: View {
+    @ObservedObject var session: RemoteSession
+    var onReload: () -> Void
+    var onSettings: () -> Void
+    var onClose: () -> Void
+    @State private var expanded = false
+    @Namespace private var glass
+
+    var body: some View {
+        GlassEffectContainer(spacing: 8) {
+            HStack(spacing: 8) {
+                if expanded {
+                    control("xmark", id: "close", tint: Theme.danger.opacity(0.35)) { onClose() }
+                    control("gearshape", id: "settings") { collapse(); onSettings() }
+                    Menu {
+                        Section(session.routeDescription) {
+                            Button { session.resolve() } label: { Label(L("重新选择线路", "Re-pick route"), systemImage: "point.3.connected.trianglepath.dotted") }
+                        }
+                        Picker(L("连接方式", "Connection"), selection: Binding(get: { session.host.mode }, set: { session.setMode($0) })) {
+                            ForEach(ConnectionMode.allCases) { Text($0.title).tag($0) }
+                        }
+                    } label: {
+                        Image(systemName: "antenna.radiowaves.left.and.right")
+                            .font(.system(size: 15, weight: .semibold))
+                            .frame(width: 40, height: 40)
+                    }
+                    .glassEffect(.regular.interactive(), in: .circle)
+                    .glassEffectID("route", in: glass)
+                    control("arrow.clockwise", id: "reload") { onReload() }
+                }
+                Button {
+                    withAnimation(.bouncy(duration: 0.35)) { expanded.toggle() }
+                } label: {
+                    HStack(spacing: 6) {
+                        StatusDot(color: session.pillColor)
+                        Text(session.pillLabel).font(.caption.weight(.semibold)).monospacedDigit()
+                        if expanded { Image(systemName: "chevron.right").font(.caption2.weight(.bold)) }
+                    }
+                    .padding(.horizontal, 12)
+                    .frame(height: 40)
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.regular.tint(session.pillColor.opacity(0.18)).interactive(), in: .capsule)
+                .glassEffectID("pill", in: glass)
+            }
+        }
+        .sensoryFeedback(.selection, trigger: expanded)
+    }
+
+    private func control(_ symbol: String, id: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 15, weight: .semibold))
+                .frame(width: 40, height: 40)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(tint.map { Glass.regular.tint($0).interactive() } ?? Glass.regular.interactive(), in: .circle)
+        .glassEffectID(id, in: glass)
+    }
+
+    private func collapse() {
+        withAnimation(.bouncy(duration: 0.35)) { expanded = false }
     }
 }
 
@@ -129,7 +236,7 @@ private struct SessionContent: View {
                     session.resolve()
                     web.reload()
                 }
-                .buttonStyle(PrimaryButtonStyle())
+                .dshProminentButton()
                 .frame(maxWidth: 220)
             }
         }
@@ -166,9 +273,7 @@ private struct StatusPill: View {
             }
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
-            .background(.ultraThinMaterial, in: Capsule())
-            .overlay(Capsule().stroke(Theme.border, lineWidth: 0.5))
-            .opacity(0.85)
+            .dshGlass()
         }
     }
 

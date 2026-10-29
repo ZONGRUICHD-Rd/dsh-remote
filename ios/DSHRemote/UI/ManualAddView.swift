@@ -53,6 +53,8 @@ struct ManualAddView: View {
                     .disabled(code.filter(\.isNumber).count != 6 || (nearby == nil && address.trimmingCharacters(in: .whitespaces).isEmpty) || resolving)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(GlassBackdrop())
             .navigationTitle(L("添加电脑", "Add computer"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button(L("取消", "Cancel")) { dismiss() } } }
